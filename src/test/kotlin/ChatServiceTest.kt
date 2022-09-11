@@ -1,14 +1,19 @@
 import org.junit.Test
 
 import org.junit.Assert.*
+import org.junit.Before
 import ru.netology.*
 
 class ChatServiceTest {
     private val chatMultiverse = ChatService()
 
+    @Before
+    fun fillBeforeTest() {
+        fillChatMultiverse()
+    }
+
     @Test
     fun sendMessageChatExist() {
-        fillChatMultiverse()
         assertTrue(
             chatMultiverse.sendMessage(
                 "Дмитрий",
@@ -20,7 +25,6 @@ class ChatServiceTest {
 
     @Test
     fun sendMessageChatNotExist() {
-        fillChatMultiverse()
         assertTrue(
             chatMultiverse.sendMessage(
                 "Сергей",
@@ -32,7 +36,6 @@ class ChatServiceTest {
 
     @Test
     fun deleteChatTrue() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.testRemoveChat(0))
     }
 
@@ -48,13 +51,11 @@ class ChatServiceTest {
 
     @Test
     fun editMessageFalseMessage() {
-        fillChatMultiverse()
         assertFalse(chatMultiverse.editMessage(0, 99, ""))
     }
 
     @Test
     fun editMessageTrue() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.editMessage(0, 0, "Тест."))
     }
 
@@ -65,32 +66,27 @@ class ChatServiceTest {
 
     @Test
     fun deleteMessageNotExistMessage() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.testRemoveMassage(0, 99) == 0)
     }
 
     @Test
     fun deleteMessageTrueSingle() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.testRemoveMassage(0, 0) == 1)
     }
 
     @Test
     fun deleteMessageTrueAll() {
-        fillChatMultiverse()
         chatMultiverse.testRemoveMassage(2, 0)
         assertTrue(chatMultiverse.testRemoveMassage(2, 1) == 2)
     }
 
     @Test
     fun getUnreadChatsExist() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.testFilterChat("Дмитрий"))
     }
 
     @Test
     fun getUnreadChatsIsEmpty() {
-        fillChatMultiverse()
         assertFalse(chatMultiverse.testFilterChat("Назарий"))
     }
 
@@ -101,13 +97,11 @@ class ChatServiceTest {
 
     @Test
     fun getMessagesByChatIdUserNotIn() {
-        fillChatMultiverse()
         assertFalse(chatMultiverse.isUserIn("Назарий", 0))
     }
 
     @Test
     fun getMessagesByChatId() {
-        fillChatMultiverse()
         assertTrue(chatMultiverse.isUserIn("Дмитрий", 0))
     }
 
