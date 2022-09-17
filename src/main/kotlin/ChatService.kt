@@ -4,17 +4,23 @@ class ChatService {
     private var chatList = mutableListOf<Chat>()
     private var chatNewId = 0
     private val chatById = { chatId: Int ->
-        chatList.find { it.id == chatId }
+        chatList.asSequence()
+            .withIndex()
+            .find { it.value.id == chatId }
     }
     private val messageById = { chat: Chat, messageId: Int ->
-        chat.messages.find { it.id == messageId }
+        chat.messages.asSequence()
+            .withIndex()
+            .find { it.value.id == messageId }
     }
     private val filterChat = { userId: String ->
-        chatList.filter {
-            it.messages.any { m ->
-                m.targetId == userId && !m.hasRead
+        chatList.asSequence()
+            .filter {
+                it.messages.any { m ->
+                    m.targetId == userId && !m.hasRead
+                }
             }
-        }
+            .toList()
     }
     private val instanceList = { list: List<Any> ->
         val stringBuilder = StringBuilder()
@@ -22,46 +28,81 @@ class ChatService {
             stringBuilder.append(instance)
         stringBuilder
     }
+    init {
+        val addChat = { users: MutableList<String>, messages: List<String> ->
+            for (m in messages) {
+                this.sendMessage(users[0], users[1], m)
+                val temp = users[0]
+                users[0] = users[1]
+                users[1] = temp
+            }
+        }
+
+        val usersChatOne = mutableListOf("Дмитрий", "Артем")
+        val messagesChatOne = listOf(
+            "Добрый вечер. Делаю ДЗ на тему дженериков и решил добавить в WallService функцию удаления поста из коллекции. Что делаю не так?",
+            "Здравствуйте, Дмитрий! Что-то на глаз не вижу проблем. Разве что можно попробовать posts.remove(target), чтобы лишний раз индекс не считать. Если не в этом дело, то может не тот id пытаетесь удалить?",
+            "Изменил на posts.remove(target). На выходе все равно false",
+            "У вас в posts два поста с id 1 и 2, а удалить вы пытаетесь пост с id 0. поэтому не удаляет",
+            "Спасибо! Забыл что ID генерирует WallService в моем коде и нужно использовать его."
+        )
+
+        val usersChatTwo = mutableListOf("Ксения", "Михаил")
+        val messagesChatTwo = listOf(
+            "Как думаете почему выражение может не работать тут: else if (musicAddict === true && purchase < 1001) println(Сумма покупки со скидкой: discountMusicAddict3)",
+            "а чуть больше контекста можно? откуда else if? перед ним что идёт?",
+            "Перед ним идет сначала иф, потом несколько элс ифов.",
+            "логично. но я имел в виду, что там, возможно, кроется корень проблемы. может до этого вот самого else if просто не доходит. дебаггером не пробовали пройтись по шагам?",
+            "Мне не помогает. Я не понимаю, чего от меня хотят. Короче я сначала объявила переменные, в которых прописала сумму покупки, буль со значениеи тру, и несколько переменных с разными скидками. Далее пошли ифы с условиями по сумме покупки. Все скидки выводятся в консоль нормально при изменении суммы покупки, а на буль ноль внимания"
+        )
+
+        val usersChatThree = mutableListOf("Татьяна", "Наталья")
+        val messagesChatThree = listOf(
+            "Здравствуйте, подскажите, что не так?",
+            "Я не могу точно сказать, почему не так, но опишу что мне не понятно в вашем коде. 1 В параметрах вашей функции status, а внутри функции userstatus. 2 получается параметр статус не   задействован, только time : Int, а в вашей функции результат String, значит нужно указать что это String"
+        )
+
+        addChat(usersChatOne, messagesChatOne)
+        addChat(usersChatTwo, messagesChatTwo)
+        addChat(usersChatThree, messagesChatThree)
+    }
 
     fun sendMessage(senderId: String, targetId: String, text: String): Chat? {
-        val chatExist = chatList.find {
-            it.messages.find { m ->
+        val chatExist = chatList.withIndex()
+            .find {
+            it.value.messages.find { m ->
                 m.senderId == senderId ||
                 m.senderId == targetId
             } != null
         }
-        val addMessage = { chat: Chat, messageId: Int ->
-            chat.copy(messages = (chat.messages + Message(
-                                    id = messageId,
-                                    senderId = senderId,
-                                    targetId = targetId,
-                                    text = text
-                                  )).toMutableList(),
-                      messageNewId = messageId + 1
-            )
+        val addMessage = { chat: Chat ->
+            chat.messages.add(
+                Message(
+                    id = chat.messageNewId,
+                    senderId = senderId,
+                    targetId = targetId,
+                    text = text
+            ))
+            chat.copy(messageNewId = chat.messageNewId + 1)
         }
-        if (chatExist == null) {
-            val newChat = Chat(id = chatNewId++)
-            chatList.add(addMessage(newChat, newChat.messageNewId))
-        } else {
-            val index = chatList.indexOf(chatExist)
-            val messageId = chatList[index].messageNewId
-            chatList[index] = addMessage(chatExist, messageId)
-        }
-        return chatExist
+        if (chatExist == null)
+            chatList.add(addMessage(Chat(id = chatNewId++)))
+        else
+            chatList[chatExist.index] = addMessage(chatExist.value)
+        return chatExist?.value
     }
 
     fun deleteChat(chatId: Int): String {
-        return if (chatList.remove(chatById(chatId)))
+        return if (chatList.remove(chatById(chatId)?.value))
                     "Чат '$chatId' удален."
         else "Чата '$chatId' не существует."
     }
 
     fun editMessage(chatId: Int, messageId: Int, text: String): Boolean {
-        val chat = chatList.find { it.id == chatId } ?: return false
-        val message = chat.messages.find { it.id == messageId } ?: return false
-        chatList[chatList.indexOf(chat)].messages[chat.messages.indexOf(message)] =
-            message.copy(
+        val chat = chatById(chatId) ?: return false
+        val message = messageById(chat.value, messageId) ?: return false
+        chat.value.messages[message.index] =
+            message.value.copy(
                 editTimeStamp = System.currentTimeMillis(),
                 text = text
             )
@@ -70,9 +111,9 @@ class ChatService {
 
     fun deleteMessage(chatId: Int, messageId: Int): String {
         val chat = chatById(chatId) ?: return "Чата '$chatId' не существует."
-        return if (chat.messages.remove(messageById(chat, messageId))) {
-            if (chat.messages.isEmpty()) {
-                chatList.remove(chat)
+        return if (chat.value.messages.remove(messageById(chat.value, messageId)?.value)) {
+            if (chat.value.messages.isEmpty()) {
+                chatList.remove(chat.value)
                 "Чат '$chatId' удален полностью."
             } else
                 "Сообщение '$messageId' удалено из чата '$chatId'."
@@ -92,15 +133,17 @@ class ChatService {
 
     fun getMessagesByChatId(userId: String, chatId: Int): String {
         val chat = chatById(chatId) ?: return "Чата '$chatId' не существует."
-        val filterMessage = chat.messages.filter { it.targetId == userId && !it.hasRead }
-        chat.messages.find {it.senderId == userId ||
-                it.targetId == userId} ?: return "$userId не участвует в чате '$chatId'."
+        chat.value.messages.find {it.targetId == userId}
+            ?: return "$userId не участвует в чате '$chatId'."
+        val filterMessage = chat.value.messages
+            .withIndex()
+            .filter { it.value.targetId == userId && !it.value.hasRead }
         filterMessage.forEach {
-            chat.messages[chat.messages.indexOf(it)] =
-                it.copy(hasRead = true)
+            chat.value.messages[it.index] =
+                it.value.copy(hasRead = true)
         }
-        return """ЧАТ '$chatId' СОДЕРЖИТ ${filterMessage.size} НЕПРОЧИТАННЫХ СООБЩЕНИЙ ДЛЯ $userId:
-            |${instanceList(filterMessage)}""".trimMargin()
+        return """ЧАТ '$chatId' СОДЕРЖИТ ${filterMessage.count()} НЕПРОЧИТАННЫХ СООБЩЕНИЙ ДЛЯ $userId:
+            |${instanceList(filterMessage.map { it.value })}""".trimMargin()
     }
 
     override fun toString(): String {
@@ -109,7 +152,7 @@ class ChatService {
     }
 
     fun testRemoveChat(chatId: Int): Boolean {
-        return chatList.remove(chatById(chatId))
+        return chatList.remove(chatById(chatId)?.value)
     }
 
     fun isFindChatById(chatId: Int): Boolean {
@@ -118,8 +161,9 @@ class ChatService {
 
     fun testRemoveMassage(chatId: Int, messageId: Int): Int {
         val chat = chatById(chatId)
-        return if (chat?.messages?.remove(messageById(chat, messageId)) == true)
-            if (chat.messages.isEmpty()) 2 else 1
+        return if (chat?.value?.messages
+                ?.remove(messageById(chat.value, messageId)?.value) == true)
+            if (chat.value.messages.isEmpty()) 2 else 1
         else 0
     }
 
@@ -128,7 +172,7 @@ class ChatService {
     }
 
     fun isUserIn(userId: String, chatId: Int): Boolean {
-        return (chatById(chatId)?.messages?.find {it.senderId == userId ||
+        return (chatById(chatId)?.value?.messages?.find {it.senderId == userId ||
                 it.targetId == userId} != null)
     }
 }
