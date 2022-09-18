@@ -4,13 +4,11 @@ class ChatService {
     private var chatList = mutableListOf<Chat>()
     private var chatNewId = 0
     private val chatById = { chatId: Int ->
-        chatList.asSequence()
-            .withIndex()
+        chatList.asSequence().withIndex()
             .find { it.value.id == chatId }
     }
     private val messageById = { chat: Chat, messageId: Int ->
-        chat.messages.asSequence()
-            .withIndex()
+        chat.messages.asSequence().withIndex()
             .find { it.value.id == messageId }
     }
     private val filterChat = { userId: String ->
@@ -70,11 +68,12 @@ class ChatService {
     fun sendMessage(senderId: String, targetId: String, text: String): Chat? {
         val chatExist = chatList.withIndex()
             .find {
-            it.value.messages.find { m ->
-                m.senderId == senderId ||
-                m.senderId == targetId
-            } != null
-        }
+                it.value.messages
+                    .find { m ->
+                        m.senderId == senderId ||
+                        m.senderId == targetId
+                    } != null
+            }
         val addMessage = { chat: Chat ->
             chat.messages.add(
                 Message(
@@ -82,7 +81,8 @@ class ChatService {
                     senderId = senderId,
                     targetId = targetId,
                     text = text
-            ))
+                )
+            )
             chat.copy(messageNewId = chat.messageNewId + 1)
         }
         if (chatExist == null)
@@ -115,8 +115,8 @@ class ChatService {
             if (chat.value.messages.isEmpty()) {
                 chatList.remove(chat.value)
                 "Чат '$chatId' удален полностью."
-            } else
-                "Сообщение '$messageId' удалено из чата '$chatId'."
+            }
+            else "Сообщение '$messageId' удалено из чата '$chatId'."
         }
         else "Сообщения '$messageId' не существует."
     }
@@ -135,15 +135,15 @@ class ChatService {
         val chat = chatById(chatId) ?: return "Чата '$chatId' не существует."
         chat.value.messages.find {it.targetId == userId}
             ?: return "$userId не участвует в чате '$chatId'."
-        val filterMessage = chat.value.messages
-            .withIndex()
+        val filterMessage = chat.value.messages.asSequence().withIndex()
             .filter { it.value.targetId == userId && !it.value.hasRead }
-        filterMessage.forEach {
-            chat.value.messages[it.index] =
-                it.value.copy(hasRead = true)
-        }
+            .onEach { message ->
+                chat.value.messages[message.index] =
+                    message.value.copy(hasRead = true)
+            }
+            .map { readedMessage -> readedMessage.value }.toList()
         return """ЧАТ '$chatId' СОДЕРЖИТ ${filterMessage.count()} НЕПРОЧИТАННЫХ СООБЩЕНИЙ ДЛЯ $userId:
-            |${instanceList(filterMessage.map { it.value })}""".trimMargin()
+            |${instanceList(filterMessage)}""".trimMargin() // .map { it.value })
     }
 
     override fun toString(): String {

@@ -1,7 +1,6 @@
 import org.junit.Test
 
 import org.junit.Assert.*
-import org.junit.Before
 import ru.netology.*
 
 class ChatServiceTest {
